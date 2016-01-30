@@ -9,5 +9,11 @@
         android:id="@+id/scrollView_Friends"
         android:layout_gravity="right" >
 
+        <LinearLayout
+            android:id="@+id/llScroll_Friends"
+            android:orientation="vertical"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent">
+        </LinearLayout>
     </ScrollView>
 </LinearLayout>
