@@ -12,4 +12,6 @@
     tools:context="com.github.nickpesce.hoyahacks.MainActivity"
     tools:showIn="@layout/app_bar_main">
 
+    <include layout="@layout/friend_bar"/>
+
 </RelativeLayout>
