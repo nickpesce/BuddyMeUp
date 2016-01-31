@@ -2,13 +2,12 @@ package com.github.nickpesce.buddymeup;
 
 import android.Manifest;
 import android.app.AlertDialog;
-import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.location.Location;
-import android.location.LocationManager;
 import android.os.Bundle;
+import android.os.Vibrator;
 import android.support.design.widget.NavigationView;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.view.GravityCompat;
@@ -20,10 +19,23 @@ import android.util.TypedValue;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.Toast;
 
+import com.google.android.gms.common.ConnectionResult;
+import com.google.android.gms.common.api.GoogleApiClient;
+import com.google.android.gms.location.LocationListener;
+import com.google.android.gms.location.LocationRequest;
+import com.google.android.gms.location.LocationServices;
+
+import java.io.UnsupportedEncodingException;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.Formatter;
+
+import packets.AlertPacket;
 import packets.FriendUpdatePacket;
 import packets.LocationPacket;
 import packets.LoginPacket;
@@ -32,14 +44,23 @@ import packets.PairRequestPacket;
 import packets.PairResponsePacket;
 
 public class MainActivity extends AppCompatActivity
-        implements NavigationView.OnNavigationItemSelectedListener, PacketHandler {
+        implements NavigationView.OnNavigationItemSelectedListener, PacketHandler, LocationListener, GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener {
 
     private Profile profile;
     private Networking networking;
     private LinearLayout buddyLayout;
-    private final static double MAX_DISTANCE = 100;
-    private Intent locationService;
+    private final static double MAX_DISTANCE = 100/5280.0;
+    //   private Intent locationService;
     private boolean trackingLocation;
+    private Location mLastLocation;
+    private Button bAlert;
+    private LocationRequest mLocationRequest;
+
+    /**
+     * ATTENTION: This was auto-generated to implement the App Indexing API.
+     * See https://g.co/AppIndexing/AndroidStudio for more information.
+     */
+    private GoogleApiClient client;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -54,6 +75,15 @@ public class MainActivity extends AppCompatActivity
         drawer.setDrawerListener(toggle);
         toggle.syncState();
 
+
+        bAlert = (Button)findViewById(R.id.bAlert);
+        bAlert.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                networking.send(new AlertPacket("", -1, profile.id, profile.name, mLastLocation.getLatitude(), mLastLocation.getLongitude(), profile.id));
+            }
+        });
+
         buddyLayout = (LinearLayout) findViewById(R.id.llBuddies);
         networking = new Networking(this);
 
@@ -61,9 +91,10 @@ public class MainActivity extends AppCompatActivity
         Intent intent = getIntent();
         profile.name = intent.getStringExtra("Name");
         profile.id = intent.getStringExtra("Phone");
-        locationService = new Intent(this, ServerUpdater.class);
-        locationService.putExtra("Name", profile.name);
-        locationService.putExtra("Id", profile.id);
+//        locationService = new Intent(this, ServerUpdater.class);
+//        locationService.putExtra("Name", profile.name);
+//        locationService.putExtra("Id", profile.id);
+
         //TODO Get Profile info:
         //- Friends temporarily hardcoded into profile
         //- Settings
@@ -101,16 +132,29 @@ public class MainActivity extends AppCompatActivity
         navigationView.setNavigationItemSelectedListener(this);
         networking.send(new LoginPacket("", -1, profile.id, profile.name));
 
+        // ATTENTION: This was auto-generated to implement the App Indexing API.
+        // See https://g.co/AppIndexing/AndroidStudio for more information.
+        client = new GoogleApiClient.Builder(this).addApi(LocationServices.API).addConnectionCallbacks(this).addOnConnectionFailedListener(this).build();
+        createLocationRequest();
+        networking.close();
     }
 
-    public void checkDistance(String id) {
+    public void checkDistance(final String id) {
         Friend f = profile.getBuddies().get(id);
         if (f.distance > MAX_DISTANCE)
+        {
             alert(id);
+            MainActivity.this.runOnUiThread(new Runnable() {
+                public void run() {
+                    Toast.makeText(MainActivity.this, "You are separated from  " + profile.getBuddies().get(id).name + "!", Toast.LENGTH_LONG).show();
+                }
+            });
+        }
+
     }
 
-    private void alert(String id) {
-        Toast.makeText(this, "TETHER BROKE! with " + profile.getBuddies().get(id).name, Toast.LENGTH_LONG).show();
+    private void alert(final String id) {
+        ((Vibrator) getSystemService(VIBRATOR_SERVICE)).vibrate(10000);
     }
 
 
@@ -174,15 +218,15 @@ public class MainActivity extends AppCompatActivity
         return true;
     }
 
-    public void startTracking() {
-        trackingLocation = true;
-        startService(locationService);
-    }
-
-    public void stopTracking() {
-        trackingLocation = false;
-        stopService(locationService);
-    }
+//    public void startTracking() {
+//        trackingLocation = true;
+//        startService(locationService);
+//    }
+//
+//    public void stopTracking() {
+//        trackingLocation = false;
+//        stopService(locationService);
+//    }
 
     private void connectToTether(String id) {
         if (!trackingLocation)
@@ -198,8 +242,7 @@ public class MainActivity extends AppCompatActivity
         });
     }
 
-    public void updateUI()
-    {
+    public void updateUI() {
         MainActivity.this.runOnUiThread(new Runnable() {
             public void run() {
                 buddyLayout.removeAllViews();
@@ -216,18 +259,15 @@ public class MainActivity extends AppCompatActivity
         new Thread(new Runnable() {
             @Override
             public void run() {
-                LocationManager locationManager = (LocationManager) MainActivity.this.getSystemService(Context.LOCATION_SERVICE);
-                if (ActivityCompat.checkSelfPermission(MainActivity.this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(MainActivity.this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-                    ActivityCompat.requestPermissions(MainActivity.this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, 69);
-                    return;
-                }
-                Location location;
+//                LocationManager locationManager = (LocationManager) MainActivity.this.getSystemService(Context.LOCATION_SERVICE);
+//                if (ActivityCompat.checkSelfPermission(MainActivity.this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(MainActivity.this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+//                    ActivityCompat.requestPermissions(MainActivity.this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, 69);
+//                    return;
+//                }
                 while (true) {
-
-                    location = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
-                    networking.send(new LocationPacket("", -1, profile.id, profile.name, location.getLatitude(), location.getLongitude()));
+                    networking.send(new LocationPacket("", -1, profile.id, profile.name, mLastLocation.getLatitude(), mLastLocation.getLongitude()));
                     try {
-                        Thread.sleep(2500);
+                        Thread.sleep(1000);
                     } catch (InterruptedException e) {
                         e.printStackTrace();
                     }
@@ -236,22 +276,23 @@ public class MainActivity extends AppCompatActivity
         }).start();
     }
 
-    @Override
-    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        switch (requestCode) {
-            case 69: {
-                // If request is cancelled, the result arrays are empty.
-                if (grantResults.length > 0
-                        && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
 
-                } else {
-                    System.exit(0);
-                }
-                return;
-            }
-        }
-    }
+//    @Override
+//    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+//        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+//        switch (requestCode) {
+//            case 69: {
+//                // If request is cancelled, the result arrays are empty.
+//                if (grantResults.length > 0
+//                        && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+//
+//                } else {
+//                    System.exit(0);
+//                }
+//                return;
+//            }
+//        }
+//    }
 
     @Override
     public void handlePacket(Packet p) {
@@ -266,6 +307,18 @@ public class MainActivity extends AppCompatActivity
                 }
                 updateUI();
                 break;
+            case Packet.LOCATION_PACKET:
+                if(p instanceof AlertPacket)
+                {
+                    final String id = ((AlertPacket) p).getfriendId();
+                    alert(id);
+                    MainActivity.this.runOnUiThread(new Runnable() {
+                        public void run() {
+                            Toast.makeText(MainActivity.this, profile.getBuddies().get(id).name + " needs you!", Toast.LENGTH_LONG).show();
+                        }
+                    });
+                }
+                break;
             case Packet.PAIR_RESPONSE_PACKET:
                 PairResponsePacket pres = (PairResponsePacket) p;
                 final Friend friend = profile.getFriends().get(pres.getFriendId());
@@ -279,7 +332,7 @@ public class MainActivity extends AppCompatActivity
                 MainActivity.this.runOnUiThread(new Runnable() {
                     public void run() {
                         AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
-                        builder.setMessage("Are you sure?").setPositiveButton("Yes", new DialogInterface.OnClickListener() {
+                        builder.setMessage(profile.getFriends().get(preq.getFriendId()) + " would like to buddy up with you. Okay?").setPositiveButton("Yes", new DialogInterface.OnClickListener() {
                             @Override
                             public void onClick(DialogInterface dialog, int which) {
                                 //YES
@@ -299,6 +352,87 @@ public class MainActivity extends AppCompatActivity
                 });
                 break;
         }
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        if (client != null) {
+            client.connect();
+        }
+    }
+
+    @Override
+    public void onConnected(Bundle bundle) {
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            // TODO: Consider calling
+            //    ActivityCompat#requestPermissions
+            // here to request the missing permissions, and then overriding
+            //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
+            //                                          int[] grantResults)
+            // to handle the case where the user grants the permission. See the documentation
+            // for ActivityCompat#requestPermissions for more details.
+            return;
+        }
+        mLastLocation = LocationServices.FusedLocationApi.getLastLocation(client);
+        if (mLastLocation != null) {
+
+            //Toast.makeText(this, "Latitude:" + mLastLocation.getLatitude() + ", Longitude:" + mLastLocation.getLongitude(), Toast.LENGTH_LONG).show();
+
+        }
+        startLocationUpdates();
+    }
+
+    protected void createLocationRequest() {
+        mLocationRequest = new LocationRequest();
+        mLocationRequest.setInterval(1000);
+        mLocationRequest.setFastestInterval(1000);
+        mLocationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
+    }
+
+    protected void startLocationUpdates() {
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            // TODO: Consider calling
+            //    ActivityCompat#requestPermissions
+            // here to request the missing permissions, and then overriding
+            //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
+            //                                          int[] grantResults)
+            // to handle the case where the user grants the permission. See the documentation
+            // for ActivityCompat#requestPermissions for more details.
+            return;
+        }
+        LocationServices.FusedLocationApi.requestLocationUpdates(client, mLocationRequest, this);
+    }
+
+    protected void stopLocationUpdates() {
+        if (client != null) {
+            LocationServices.FusedLocationApi.removeLocationUpdates(client, this);
+        }
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        if (client != null) {
+            client.disconnect();
+        }
+    }
+
+    @Override
+    public void onLocationChanged(Location location) {
+        mLastLocation = location;
+        //Toast.makeText(this, "Latitude:" + mLastLocation.getLatitude()+", Longitude:"+mLastLocation.getLongitude(),Toast.LENGTH_LONG).show();
+
+    }
+
+    @Override
+    public void onConnectionSuspended(int i) {
+
+    }
+
+    @Override
+    public void onConnectionFailed(ConnectionResult connectionResult) {
+
     }
 
 }

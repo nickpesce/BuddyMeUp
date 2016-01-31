@@ -4,7 +4,6 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.os.PersistableBundle;
 import android.support.v7.app.AppCompatActivity;
-import android.util.Log;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.widget.Button;
@@ -15,36 +14,28 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Formatter;
 
-public class LoginActivity extends AppCompatActivity {
+public class RegisterActivity extends AppCompatActivity {
 
     private Button bLogin, bRegister;
-    private EditText etName, etPass;
+    private EditText etName, etPhone, etPass;
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_login);
-        etName = (EditText)findViewById(R.id.etLoginName);
+        setContentView(R.layout.activity_register);
+        etName = (EditText)findViewById(R.id.etRegisterName);
 
-        etPass = (EditText)findViewById(R.id.etLoginPassword);
+        etPhone = (EditText)findViewById(R.id.etRegisterPhone);
+
+        etPass = (EditText)findViewById(R.id.etRegisterPass);
 
         bLogin = (Button)findViewById(R.id.bLogin);
         String encryptedPass = encryptPassword(etPass.getText().toString());
 
-        bLogin.setOnClickListener(new OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                Intent intent = new Intent(LoginActivity.this, MainActivity.class);
-                intent.putExtra("Name", etName.getText().toString());
-                startActivity(intent);
-            }
-        });
-
-        bRegister = (Button)findViewById(R.id.bRegister);
+        bRegister = (Button)findViewById(R.id.bRegister2);
         bRegister.setOnClickListener(new OnClickListener() {
             @Override
             public void onClick(View v) {
-                Intent intent = new Intent(LoginActivity.this, RegisterActivity.class);
-                startActivity(intent);
+
             }
         });
     }

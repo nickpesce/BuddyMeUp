@@ -26,6 +26,8 @@ public class Networking {
 
     private PacketHandler packetHandler;
     private ConcurrentLinkedQueue<Packet> sendQueue;
+    DatagramSocket sendSocket, recvSocket;
+    Thread sendThread, recvThread;
 
     public Networking(final PacketHandler handler) {
         sendQueue = new ConcurrentLinkedQueue<>();
@@ -39,14 +41,20 @@ public class Networking {
         startSender();
     }
 
+    public void close()
+    {
+        sendSocket.close();
+        recvSocket.close();
+    }
+
     public void startSender()
     {
-        new Thread(new Runnable() {
+        sendThread = new Thread(new Runnable() {
             @Override
             public void run() {
                 try {
-                    DatagramSocket socket = new DatagramSocket(port);
-                    socket.connect(host, port);
+                    sendSocket = new DatagramSocket(port);
+                    sendSocket.connect(host, port);
                     while(true) {
                         Packet o;
                         synchronized(sendQueue) {
@@ -59,7 +67,7 @@ public class Networking {
 
 
 
-                        o.setIp(socket.getLocalAddress().getHostName());
+                        o.setIp(sendSocket.getLocalAddress().getHostName());
                         o.setPort(port);
                         output.writeObject(o);
 
@@ -67,7 +75,7 @@ public class Networking {
 
                         DatagramPacket packet = new DatagramPacket(buf, buf.length, host, port);
 
-                        socket.send(packet);
+                        sendSocket.send(packet);
                         System.out.println("SENT: " + packet);
                     }
                 }catch(Exception e)
@@ -75,17 +83,17 @@ public class Networking {
                     e.printStackTrace();
                 }
             }
-        }).start();
+        });
+        sendThread.start();
     }
 
     public void listen()
     {
-        new Thread(new Runnable() {
+        recvThread = new Thread(new Runnable() {
             @Override
             public void run() {
-                DatagramSocket socket = null;
                 try {
-                    socket = new DatagramSocket(6969);
+                    recvSocket = new DatagramSocket(6969);
                 } catch (SocketException e) {
                     e.printStackTrace();
                 }
@@ -94,7 +102,7 @@ public class Networking {
 
                     DatagramPacket rec = new DatagramPacket(buf, buf.length);
                     try {
-                        socket.receive(rec);
+                        recvSocket.receive(rec);
                         ObjectInputStream ois = new ObjectInputStream(new ByteArrayInputStream(buf));
                         Object recPacket = ois.readObject();
                         System.out.println("Received Packet " + recPacket);
@@ -107,7 +115,8 @@ public class Networking {
                 }
                // socket.close();
             }
-        }).start();
+        });
+        recvThread.start();
     }
 
     public void send(Packet o) {

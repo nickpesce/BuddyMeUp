@@ -12,6 +12,8 @@ import android.view.View;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 
+import java.text.DecimalFormat;
+
 public class Friend {
     String name;
     String id;
@@ -55,8 +57,9 @@ public class Friend {
                     canvas.drawText(name, radius / 2 - paint.measureText(name) / 2, radius + paint.getTextSize(), paint);
                 } else {
                     paint.setTextSize(radius/2);
-                    String nameDist = name + " " + (distance<1000? (distance*5280 + " ft") : (distance + " mi"));
-                    canvas.drawText(nameDist + " " + distance, radius, radius/2 + paint.getTextSize()/2, paint);
+                    DecimalFormat format = new DecimalFormat("0.00");
+                    String nameDist = name + " " + (distance<1000? ((int)(distance*5280) + " ft") : (format.format(distance) + " mi"));
+                    canvas.drawText(nameDist, radius, radius/2 + paint.getTextSize()/2, paint);
                 }
                 paint.setColor(Color.WHITE);
                 paint.setTextSize(radius / 2);
