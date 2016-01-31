@@ -5,15 +5,19 @@
 
     <ScrollView
         android:layout_width="64dp"
-        android:layout_height="match_parent"
+        android:layout_height="wrap_content"
         android:id="@+id/scrollView_Friends"
-        android:layout_gravity="right" >
+        android:layout_gravity="right"
+        android:scrollIndicators="none"
+        android:outlineProvider="bounds"
+        android:clickable="true">
 
         <LinearLayout
             android:id="@+id/llScroll_Friends"
             android:orientation="vertical"
             android:layout_width="match_parent"
-            android:layout_height="match_parent">
+            android:layout_height="match_parent"
+            android:scrollIndicators="none">
         </LinearLayout>
     </ScrollView>
 </LinearLayout>

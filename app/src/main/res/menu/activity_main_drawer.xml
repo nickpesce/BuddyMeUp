@@ -29,6 +29,10 @@
                 android:id="@+id/nav_rate"
                 android:icon="@drawable/ic_menu_camera"
                 android:title="Rate" />
+            <item
+                android:id="@+id/nav_logout"
+                android:icon="@drawable/ic_menu_manage"
+                android:title="Log Out" />
         </menu>
     </item>
 
