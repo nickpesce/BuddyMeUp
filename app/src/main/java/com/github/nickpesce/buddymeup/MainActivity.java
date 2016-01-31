@@ -45,6 +45,7 @@ import packets.LoginPacket;
 import packets.Packet;
 import packets.PairRequestPacket;
 import packets.PairResponsePacket;
+import packets.UntetherPacket;
 
 public class MainActivity extends AppCompatActivity
         implements NavigationView.OnNavigationItemSelectedListener, PacketHandler, LocationListener, GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener {
@@ -285,8 +286,19 @@ public class MainActivity extends AppCompatActivity
         MainActivity.this.runOnUiThread(new Runnable() {
             public void run() {
                 buddyLayout.removeAllViews();
-                for (Friend f : profile.getBuddies().values()) {
-                    buddyLayout.addView(f.getNewIcon(false));
+                for (final Friend f : profile.getBuddies().values()) {
+                    ImageView view = f.getNewIcon(false);
+                    view.setOnClickListener(new View.OnClickListener() {
+                        @Override
+                        public void onClick(View v) {
+                            networking.send(new UntetherPacket("", -1, profile.id, profile.name, f.id));
+                            profile.getBuddies().remove(f.id);
+                            if(profile.getBuddies().isEmpty())
+                                trackingLocation=false;
+                            updateUI();
+                        }
+                    });
+                    buddyLayout.addView(view);
                 }
             }
         });
@@ -303,7 +315,7 @@ public class MainActivity extends AppCompatActivity
 //                    ActivityCompat.requestPermissions(MainActivity.this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, 69);
 //                    return;
 //                }
-                while (true) {
+                while (trackingLocation) {
                     networking.send(new LocationPacket("", -1, profile.id, profile.name, mLastLocation.getLatitude(), mLastLocation.getLongitude()));
                     try {
                         Thread.sleep(1000);
@@ -421,6 +433,13 @@ public class MainActivity extends AppCompatActivity
                     }
                 });
                 break;
+            case Packet.UNTETHER_PACKET:
+                UntetherPacket up = (UntetherPacket)p;
+                profile.getBuddies().remove(up.getFriendId());
+                updateUI();
+                if(profile.getBuddies().isEmpty())
+                    trackingLocation = false;
+                break;
         }
     }
 
@@ -431,6 +450,7 @@ public class MainActivity extends AppCompatActivity
             client.connect();
         }
     }
+
 
     @Override
     public void onConnected(Bundle bundle) {
@@ -481,11 +501,13 @@ public class MainActivity extends AppCompatActivity
     }
 
     @Override
-    protected void onStop() {
-        super.onStop();
+    protected void onDestroy() {
+        super.onDestroy();
         if (client != null) {
             client.disconnect();
         }
+        networking.send(new UntetherPacket("", -1, profile.id, profile.name, null));
+        //networking.close();
     }
 
     @Override

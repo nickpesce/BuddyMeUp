@@ -9,10 +9,10 @@ import java.io.Serializable;
 
 public abstract class Packet implements Serializable{
 
-	public static final int FRIEND_UPDATE_PACKET = 0, LOCATION_PACKET=1,PAIR_REQUEST_PACKET=2,PAIR_RESPONSE_PACKET=3,LOGIN_PACKET=4,LOGIN_RESPONSE=5,NEW_USER_PACKET=6;
+	public static final int FRIEND_UPDATE_PACKET = 0, LOCATION_PACKET=1,PAIR_REQUEST_PACKET=2,PAIR_RESPONSE_PACKET=3,LOGIN_PACKET=4,LOGIN_RESPONSE=5,NEW_USER_PACKET=6, UNTETHER_PACKET = 7;
 	
 	private static final long serialVersionUID = -2191909857648827237L;
-	
+
 	private String ip;
 	private int port;
 	private String id;

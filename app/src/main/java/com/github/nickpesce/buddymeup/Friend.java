@@ -8,7 +8,6 @@ import android.graphics.Paint;
 import android.graphics.RectF;
 import android.graphics.drawable.Drawable;
 import android.util.TypedValue;
-import android.view.View;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 
@@ -62,7 +61,7 @@ public class Friend {
                     DecimalFormat format = new DecimalFormat("0.00");
 
                     String nameDist = name + " " + (distance<1000? ((int)(distance*5280) + " ft") : (format.format(distance) + " mi"));
-                    if(distance > 0)
+                    if(distance < 0)
                         nameDist = name;
                     canvas.drawText(nameDist, radius, radius/2 + paint.getTextSize()/2, paint);
                 }

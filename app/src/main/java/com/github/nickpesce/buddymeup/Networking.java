@@ -40,6 +40,12 @@ public class Networking {
         startSender();
     }
 
+    public void close()
+    {
+        sendSocket.close();
+        recvSocket.close();
+    }
+
     public void setPacketHandler(PacketHandler handler)
     {
         this.packetHandler = handler;
