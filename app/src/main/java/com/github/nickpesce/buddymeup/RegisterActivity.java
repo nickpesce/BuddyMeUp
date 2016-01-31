@@ -14,64 +14,34 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Formatter;
 
+import packets.NewUserPacket;
+import packets.Packet;
+
 public class RegisterActivity extends AppCompatActivity {
 
     private Button bLogin, bRegister;
-    private EditText etName, etPhone, etPass;
+    private EditText etName, etDisplayName, etPass;
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_register);
-        etName = (EditText)findViewById(R.id.etRegisterName);
+        etDisplayName = (EditText)findViewById(R.id.etRegisterDisplayName);
 
-        etPhone = (EditText)findViewById(R.id.etRegisterPhone);
+        etName = (EditText)findViewById(R.id.etRegisterName);
 
         etPass = (EditText)findViewById(R.id.etRegisterPass);
 
         bLogin = (Button)findViewById(R.id.bLogin);
-        String encryptedPass = encryptPassword(etPass.getText().toString());
 
         bRegister = (Button)findViewById(R.id.bRegister2);
         bRegister.setOnClickListener(new OnClickListener() {
             @Override
             public void onClick(View v) {
-
+                MainActivity.networking.send(new NewUserPacket("", -1, etName.getText().toString(), etDisplayName.getText().toString(), etPass.getText().toString()));
+                Intent intent = new Intent(RegisterActivity.this, LoginActivity.class);
+                startActivity(intent);
             }
         });
-    }
-
-
-    private static String encryptPassword(String password)
-    {
-        String sha1 = "";
-        try
-        {
-            MessageDigest crypt = MessageDigest.getInstance("SHA-1");
-            crypt.reset();
-            crypt.update(password.getBytes("UTF-8"));
-            sha1 = byteToHex(crypt.digest());
-        }
-        catch(NoSuchAlgorithmException e)
-        {
-            e.printStackTrace();
-        }
-        catch(UnsupportedEncodingException e)
-        {
-            e.printStackTrace();
-        }
-        return sha1;
-    }
-
-    private static String byteToHex(final byte[] hash)
-    {
-        Formatter formatter = new Formatter();
-        for (byte b : hash)
-        {
-            formatter.format("%02x", b);
-        }
-        String result = formatter.toString();
-        formatter.close();
-        return result;
     }
 }
 

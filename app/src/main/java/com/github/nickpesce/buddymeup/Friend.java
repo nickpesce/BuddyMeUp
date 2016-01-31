@@ -54,11 +54,16 @@ public class Friend {
                 paint.setColor(Color.BLACK);
                 if (compact) {
                     paint.setTextSize(radius / 4);
+                    if(requested)
+                        paint.setColor(Color.RED);
                     canvas.drawText(name, radius / 2 - paint.measureText(name) / 2, radius + paint.getTextSize(), paint);
                 } else {
                     paint.setTextSize(radius/2);
                     DecimalFormat format = new DecimalFormat("0.00");
+
                     String nameDist = name + " " + (distance<1000? ((int)(distance*5280) + " ft") : (format.format(distance) + " mi"));
+                    if(distance > 0)
+                        nameDist = name;
                     canvas.drawText(nameDist, radius, radius/2 + paint.getTextSize()/2, paint);
                 }
                 paint.setColor(Color.WHITE);

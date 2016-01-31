@@ -30,10 +30,13 @@ import com.google.android.gms.location.LocationListener;
 import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationServices;
 
+import java.io.Serializable;
 import java.io.UnsupportedEncodingException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Formatter;
+import java.util.HashMap;
+import java.util.Map;
 
 import packets.AlertPacket;
 import packets.FriendUpdatePacket;
@@ -46,8 +49,13 @@ import packets.PairResponsePacket;
 public class MainActivity extends AppCompatActivity
         implements NavigationView.OnNavigationItemSelectedListener, PacketHandler, LocationListener, GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener {
 
+    public static Networking networking;
+    static{
+        networking = new Networking();
+
+    }
+
     private Profile profile;
-    private Networking networking;
     private LinearLayout buddyLayout;
     private final static double MAX_DISTANCE = 100/5280.0;
     //   private Intent locationService;
@@ -66,6 +74,8 @@ public class MainActivity extends AppCompatActivity
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        networking.setPacketHandler(this);
+
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
 
@@ -85,38 +95,22 @@ public class MainActivity extends AppCompatActivity
         });
 
         buddyLayout = (LinearLayout) findViewById(R.id.llBuddies);
-        networking = new Networking(this);
 
         profile = new Profile(this);
         Intent intent = getIntent();
         profile.name = intent.getStringExtra("Name");
-        profile.id = intent.getStringExtra("Phone");
+        profile.id = intent.getStringExtra("Id");
 //        locationService = new Intent(this, ServerUpdater.class);
 //        locationService.putExtra("Name", profile.name);
 //        locationService.putExtra("Id", profile.id);
+        HashMap<String, String> friends = (HashMap<String, String>) intent.getSerializableExtra("Friends");
 
-        //TODO Get Profile info:
-        //- Friends temporarily hardcoded into profile
-        //- Settings
-
-        LinearLayout scrollLayout = (LinearLayout) findViewById(R.id.llScroll_Friends);
-        final int radius = (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 60, getResources().getDisplayMetrics());
-
-        for (final Friend f : profile.getFriends().values()) {
-            final ImageView icon = f.getNewIcon(true);
-            icon.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    if (!profile.getBuddies().containsKey(f.id) && !profile.getFriends().get(f.id).requested) {
-                        f.requested = true;
-                        networking.send(new PairRequestPacket("", -1, profile.id, profile.name, f.id));
-                        //TODO visual requested
-                    }
-                }
-            });
-
-            scrollLayout.addView(icon, radius, radius + radius / 3);
+        for(Map.Entry<String, String> e : friends.entrySet())
+        {
+            profile.friends.put(e.getKey(), new Friend(this, e.getValue(), e.getKey()));
         }
+
+        updateFriendsView();
 //        new Thread(new Runnable() {
 //            @Override
 //            public void run() {
@@ -130,14 +124,42 @@ public class MainActivity extends AppCompatActivity
 
         NavigationView navigationView = (NavigationView) findViewById(R.id.nav_view);
         navigationView.setNavigationItemSelectedListener(this);
-        networking.send(new LoginPacket("", -1, profile.id, profile.name));
 
         // ATTENTION: This was auto-generated to implement the App Indexing API.
         // See https://g.co/AppIndexing/AndroidStudio for more information.
         client = new GoogleApiClient.Builder(this).addApi(LocationServices.API).addConnectionCallbacks(this).addOnConnectionFailedListener(this).build();
         createLocationRequest();
-        networking.close();
     }
+
+    public void updateFriendsView() {
+
+        final LinearLayout scrollLayout = (LinearLayout) findViewById(R.id.llScroll_Friends);
+        MainActivity.this.runOnUiThread(new Runnable() {
+            public void run() {
+                scrollLayout.removeAllViews();
+            }
+        });
+        final int radius = (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 60, getResources().getDisplayMetrics());
+
+        for (final Friend f : profile.getFriends().values()) {
+            final ImageView icon = f.getNewIcon(true);
+            icon.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    if (!profile.getBuddies().containsKey(f.id) && !profile.getFriends().get(f.id).requested) {
+                        f.requested = true;
+                        networking.send(new PairRequestPacket("", -1, profile.id, profile.name, f.id, true));
+                    }
+                }
+            });
+            MainActivity.this.runOnUiThread(new Runnable() {
+                public void run() {
+                    scrollLayout.addView(icon, radius, radius + radius / 3);
+                }
+            });
+        }
+    }
+
 
     public void checkDistance(final String id) {
         Friend f = profile.getBuddies().get(id);
@@ -202,6 +224,8 @@ public class MainActivity extends AppCompatActivity
 
         } else if (id == R.id.nav_friends) {
 
+            Intent intent = new Intent(this, ActivityAddFriend.class);
+            startActivityForResult(intent, 95);
         } else if (id == R.id.nav_options) {
 
         } else if (id == R.id.nav_share) {
@@ -218,7 +242,22 @@ public class MainActivity extends AppCompatActivity
         return true;
     }
 
-//    public void startTracking() {
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        if(requestCode==95)//Friend
+        {
+            networking.setPacketHandler(this);
+            final String friend = data.getStringExtra("Friend");
+            MainActivity.networking.send(new PairRequestPacket("", -1, profile.id, profile.name, friend, false));
+            MainActivity.this.runOnUiThread(new Runnable() {
+                public void run() {
+                    Toast.makeText(MainActivity.this, "Requesting friendship from " + friend, Toast.LENGTH_LONG).show();
+                }
+            });
+        }
+    }
+
+    //    public void startTracking() {
 //        trackingLocation = true;
 //        startService(locationService);
 //    }
@@ -321,33 +360,64 @@ public class MainActivity extends AppCompatActivity
                 break;
             case Packet.PAIR_RESPONSE_PACKET:
                 PairResponsePacket pres = (PairResponsePacket) p;
-                final Friend friend = profile.getFriends().get(pres.getFriendId());
-                if (pres.response() == true) {
-                    connectToTether(pres.getFriendId());
-                } else
-                    friend.requested = false;
+                if(!pres.isTether) {
+                    if(pres.response()) {
+                        profile.friends.put(pres.getFriendId(), new Friend(this, pres.getName(), pres.getFriendId()));
+                        updateFriendsView();
+                    }
+                }
+                else {
+                    final Friend friend = profile.getFriends().get(pres.getFriendId());
+                    if (pres.response() == true) {
+                        connectToTether(pres.getFriendId());
+                    } else
+                        friend.requested = false;
+                }
                 break;
             case Packet.PAIR_REQUEST_PACKET:
                 final PairRequestPacket preq = (PairRequestPacket) p;
                 MainActivity.this.runOnUiThread(new Runnable() {
                     public void run() {
+                        System.out.println("REQUEST UI ");
                         AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
-                        builder.setMessage(profile.getFriends().get(preq.getFriendId()) + " would like to buddy up with you. Okay?").setPositiveButton("Yes", new DialogInterface.OnClickListener() {
-                            @Override
-                            public void onClick(DialogInterface dialog, int which) {
-                                //YES
-                                networking.send(new PairResponsePacket("", -1, profile.id, profile.name, preq.getFriendId(), true));
-                                connectToTether(preq.getFriendId());
+                        if(preq.isTether) {
+                            System.out.println("IS A TETHER");
+                            builder.setMessage(profile.getFriends().get(preq.getFriendId()).name + " would like to buddy up with you. Okay?").setPositiveButton("Yes", new DialogInterface.OnClickListener() {
+                                @Override
+                                public void onClick(DialogInterface dialog, int which) {
+                                    //YES
+                                    networking.send(new PairResponsePacket("", -1, profile.id, profile.name, preq.getFriendId(), true, true));
+                                    connectToTether(preq.getFriendId());
 
-                            }
-                        })
-                                .setNegativeButton("No", new DialogInterface.OnClickListener() {
-                                    @Override
-                                    public void onClick(DialogInterface dialog, int which) {
-                                        //NO
-                                        networking.send(new PairResponsePacket("", -1, profile.id, profile.name, preq.getFriendId(), false));
-                                    }
-                                }).show();
+                                }
+                            })
+                                    .setNegativeButton("No", new DialogInterface.OnClickListener() {
+                                        @Override
+                                        public void onClick(DialogInterface dialog, int which) {
+                                            //NO
+                                            networking.send(new PairResponsePacket("", -1, profile.id, profile.name, preq.getFriendId(), false, true));
+                                        }
+                                    }).show();
+                        }else
+                        {
+                            System.out.println("NOT A TETHER");
+                            builder.setMessage(preq.getName() + " would like to be your friend. Okay?").setPositiveButton("Yes", new DialogInterface.OnClickListener() {
+                                @Override
+                                public void onClick(DialogInterface dialog, int which) {
+                                    //YES
+                                    networking.send(new PairResponsePacket("", -1, profile.id, profile.name, preq.getFriendId(), true, false));
+                                    profile.friends.put(preq.getFriendId(), new Friend(MainActivity.this, preq.getName(), preq.getFriendId()));
+                                    updateFriendsView();
+                                }
+                            })
+                                    .setNegativeButton("No", new DialogInterface.OnClickListener() {
+                                        @Override
+                                        public void onClick(DialogInterface dialog, int which) {
+                                            //NO
+                                            networking.send(new PairResponsePacket("", -1, profile.id, profile.name, preq.getFriendId(), false, false));
+                                        }
+                                    }).show();
+                        }
                     }
                 });
                 break;

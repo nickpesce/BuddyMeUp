@@ -12,12 +12,14 @@ public class PairResponsePacket extends Packet{
 	
 	private String friendId;
 	private boolean response;
+	public final boolean isTether;
 	
-	public PairResponsePacket(String ip,int port, String id,String name, String friendId, boolean response){
+	public PairResponsePacket(String ip,int port, String id,String name, String friendId, boolean response, boolean isTether){
 		
 		super(ip,port,id,name,PAIR_RESPONSE_PACKET);
 		this.friendId=friendId;
 		this.response=response;
+		this.isTether = isTether;
 	}
 	
 	public String getFriendId(){

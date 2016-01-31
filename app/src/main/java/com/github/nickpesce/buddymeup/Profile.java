@@ -8,7 +8,7 @@ import java.util.HashMap;
 
 public class Profile implements Serializable{
 
-    private HashMap<String, Friend> friends;
+    public HashMap<String, Friend> friends;
     private HashMap<String, Friend> buddies;
     public String name;
     public String id;
@@ -17,10 +17,7 @@ public class Profile implements Serializable{
     {
         buddies = new HashMap<>();
         friends = new HashMap<>();
-        friends.put("1", new Friend(context, "Tal", "1"));
-        friends.put("0", new Friend(context, "Nick", "0"));
-        friends.put("2", new Friend(context, "Kevin", "2"));
-        friends.put("3", new Friend(context, "Diane", "3"));
+
     }
 
     public HashMap<String, Friend> getFriends()

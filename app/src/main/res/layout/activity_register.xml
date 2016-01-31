@@ -15,7 +15,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:inputType="textPersonName"
-        android:hint="Name"
+        android:hint="Username"
         android:ems="10"
         android:id="@+id/etRegisterName"
         android:layout_gravity="center_horizontal" />
@@ -23,10 +23,10 @@
     <EditText
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:inputType="phone"
-        android:hint="Phone #"
+        android:inputType="textPersonName"
+        android:hint="Display Name"
         android:ems="10"
-        android:id="@+id/etRegisterPhone"
+        android:id="@+id/etRegisterDisplayName"
         android:layout_gravity="center_horizontal" />
 
     <EditText

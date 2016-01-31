@@ -29,9 +29,8 @@ public class Networking {
     DatagramSocket sendSocket, recvSocket;
     Thread sendThread, recvThread;
 
-    public Networking(final PacketHandler handler) {
+    public Networking() {
         sendQueue = new ConcurrentLinkedQueue<>();
-        packetHandler = handler;
         try {
             host = InetAddress.getByName(Networking.this.hostName);
         } catch (UnknownHostException e) {
@@ -41,10 +40,9 @@ public class Networking {
         startSender();
     }
 
-    public void close()
+    public void setPacketHandler(PacketHandler handler)
     {
-        sendSocket.close();
-        recvSocket.close();
+        this.packetHandler = handler;
     }
 
     public void startSender()

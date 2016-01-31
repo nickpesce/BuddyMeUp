@@ -9,13 +9,18 @@ import android.view.View;
 import android.view.View.OnClickListener;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.Toast;
 
 import java.io.UnsupportedEncodingException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Formatter;
 
-public class LoginActivity extends AppCompatActivity {
+import packets.LoginPacket;
+import packets.LoginResponsePacket;
+import packets.Packet;
+
+public class LoginActivity extends AppCompatActivity implements PacketHandler {
 
     private Button bLogin, bRegister;
     private EditText etName, etPass;
@@ -28,14 +33,12 @@ public class LoginActivity extends AppCompatActivity {
         etPass = (EditText)findViewById(R.id.etLoginPassword);
 
         bLogin = (Button)findViewById(R.id.bLogin);
-        String encryptedPass = encryptPassword(etPass.getText().toString());
-
+        MainActivity.networking.setPacketHandler(this);
         bLogin.setOnClickListener(new OnClickListener() {
             @Override
             public void onClick(View v) {
-                Intent intent = new Intent(LoginActivity.this, MainActivity.class);
-                intent.putExtra("Name", etName.getText().toString());
-                startActivity(intent);
+                MainActivity.networking.send(new LoginPacket("", -1, etName.getText().toString(), etName.getText().toString(), etPass.getText().toString()));
+
             }
         });
 
@@ -49,38 +52,31 @@ public class LoginActivity extends AppCompatActivity {
         });
     }
 
+    @Override
+    public void handlePacket(Packet p) {
+        switch(p.getPacketType())
+        {
+            case Packet.LOGIN_RESPONSE:
+                LoginResponsePacket lrp = (LoginResponsePacket)p;
+                if(lrp.getStatusCode() == LoginResponsePacket.Result.INCORRECT_INFO)
+                {
+                    LoginActivity.this.runOnUiThread(new Runnable() {
+                        public void run() {
+                            Toast.makeText(LoginActivity.this, "Wrong username or password", Toast.LENGTH_LONG).show();
+                        }
+                    });
+                    return;
+                }
 
-    private static String encryptPassword(String password)
-    {
-        String sha1 = "";
-        try
-        {
-            MessageDigest crypt = MessageDigest.getInstance("SHA-1");
-            crypt.reset();
-            crypt.update(password.getBytes("UTF-8"));
-            sha1 = byteToHex(crypt.digest());
-        }
-        catch(NoSuchAlgorithmException e)
-        {
-            e.printStackTrace();
-        }
-        catch(UnsupportedEncodingException e)
-        {
-            e.printStackTrace();
-        }
-        return sha1;
-    }
+                Intent intent = new Intent(LoginActivity.this, MainActivity.class);
 
-    private static String byteToHex(final byte[] hash)
-    {
-        Formatter formatter = new Formatter();
-        for (byte b : hash)
-        {
-            formatter.format("%02x", b);
+                intent.putExtra("Name", lrp.getName());
+                intent.putExtra("Id", lrp.getId());
+                intent.putExtra("Friends", lrp.getFriends());
+
+                startActivity(intent);
+                break;
         }
-        String result = formatter.toString();
-        formatter.close();
-        return result;
     }
 }
 
